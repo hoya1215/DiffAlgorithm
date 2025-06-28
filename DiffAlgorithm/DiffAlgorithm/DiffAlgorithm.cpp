@@ -597,7 +597,7 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 			}
 		}
 
-		// Folder
+		//// Folder
 		//int Start = 0;
 		//for (int i = 0; i < originFolderQ.size(); ++i)
 		//{
@@ -622,7 +622,7 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 		//	}
 		//}
 
-		// File
+		//// File
 		//Start = targetFolderQ.size();
 		//for (int i = originFolderQ.size(); i < originOutput->ChildCount; ++i)
 		//{
@@ -656,7 +656,7 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 		}
 
 
-		// Folder
+		//// Folder
 		vector<FolderNode_S*> originFolderV;
 		vector<FolderNode_S*> targetFolderV;
 		while (!CommonFolder.empty())
@@ -780,7 +780,7 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 
 		}
 
-		// File
+		//// File
 		vector<FolderNode_S*> originFileV;
 		vector<FolderNode_S*> targetFileV;
 		while (!CommonFile.empty())
@@ -911,25 +911,51 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 		}
 		else
 		{
-			//if (filesystem::file_size(originInput) != filesystem::file_size(targetInput))
-			//{
-			//	originOutput->Type = LineDiffType::Diff;
-			//	targetOutput->Type = LineDiffType::Diff;
-			//	bReturn =  false;
-			//}
 
-			ifstream originFile(originInput, std::ios::binary);
-			ifstream targetFile(targetInput, std::ios::binary);
-			string originContent((std::istreambuf_iterator<char>(originFile)), std::istreambuf_iterator<char>());
+			ifstream originFile(originInput);
+			ifstream targetFile(targetInput);
 
-			string targetContent((std::istreambuf_iterator<char>(targetFile)), std::istreambuf_iterator<char>());
+			vector<string> originLines;
+			vector<string> targetLines;
+			string line;
 
-			if (originContent != targetContent)
+			while (getline(originFile, line)) originLines.push_back(line);
+			while (getline(targetFile, line)) targetLines.push_back(line);
+
+			while (!originLines.empty() && originLines.back().empty()) originLines.pop_back();
+			while (!targetLines.empty() && targetLines.back().empty()) targetLines.pop_back();
+			
+			if (originLines.size() != targetLines.size())
 			{
 				originOutput->Type = LineDiffType::Diff;
 				targetOutput->Type = LineDiffType::Diff;
 				bReturn = false;
+				return bReturn;
 			}
+
+			for (int i = 0; i < originLines.size(); ++i)
+			{
+				if (originLines[i] != targetLines[i])
+				{
+					originOutput->Type = LineDiffType::Diff;
+					targetOutput->Type = LineDiffType::Diff;
+					bReturn = false;
+					return bReturn;
+				}
+			}
+
+			//ifstream originFile(originInput, std::ios::binary);
+			//ifstream targetFile(targetInput, std::ios::binary);
+			//string originContent((std::istreambuf_iterator<char>(originFile)), std::istreambuf_iterator<char>());
+
+			//string targetContent((std::istreambuf_iterator<char>(targetFile)), std::istreambuf_iterator<char>());
+
+			//if (originContent != targetContent)
+			//{
+			//	originOutput->Type = LineDiffType::Same;
+			//	targetOutput->Type = LineDiffType::Same;
+			//	bReturn = true;
+			//}
 
 		}
 	}
