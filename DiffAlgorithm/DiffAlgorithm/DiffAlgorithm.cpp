@@ -511,6 +511,9 @@ DIFFALGORITHM_DECLSPEC void CompareLinesByLCS(LineInfo_S** originOutput, LineInf
 
 DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode_S* targetOutput, const char* originInput, const char* targetInput)
 {
+
+	
+
 	bool bReturn = true;
 
 	bool bIsOriginFolder = filesystem::is_directory(originInput);
@@ -665,6 +668,8 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 			auto target = targetFolderQ.front();
 			auto common = CommonFolder.front();
 
+			g_progressCallback(origin->Index);
+
 			string originName = GetFileName(origin->Path);
 			string targetName = GetFileName(target->Path);
 
@@ -672,6 +677,8 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 			{
 				originFolderV.push_back(origin);
 				targetFolderV.push_back(target);
+
+				
 
 				originFolderQ.pop(); targetFolderQ.pop(); CommonFolder.pop();
 			}
@@ -745,6 +752,8 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 				origin->IsDirectory = true;
 				target->Type = LineDiffType::Added;
 				target->IsDirectory = true;
+
+				g_progressCallback(target->Index);
 			}
 			else
 			{
@@ -761,6 +770,8 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 				origin->IsDirectory = true;
 				target->Type = LineDiffType::Deleted;
 				target->IsDirectory = true;
+
+				g_progressCallback(origin->Index);
 			}
 
 			//if (targetFolderQ.empty())
@@ -788,6 +799,8 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 			auto origin = originFileQ.front();
 			auto target = targetFileQ.front();
 			auto common = CommonFile.front();
+
+			g_progressCallback(origin->Index);
 
 			string originName = GetFileName(origin->Path);
 			string targetName = GetFileName(target->Path);
@@ -855,6 +868,8 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 				target->Type = LineDiffType::Added;
 				origin->IsDirectory = false;
 				target->IsDirectory = false;
+
+				g_progressCallback(target->Index);
 			}
 			else
 			{
@@ -871,6 +886,8 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 				target->Type = LineDiffType::Deleted;
 				origin->IsDirectory = false;
 				target->IsDirectory = false;
+
+				g_progressCallback(origin->Index);
 			}
 
 
@@ -978,6 +995,11 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 
 
 
+DIFFALGORITHM_DECLSPEC void __stdcall SetProgressCallback(ProgressCallback cb)
+{
+	g_progressCallback = cb;
+}
+
 DIFFALGORITHM_DECLSPEC void FreeMemory(LineInfo_S* lines)
 {
 	delete[] lines;
@@ -1033,3 +1055,4 @@ bool CreateFolder(FolderNode_S* origin, FolderNode_S* target)
 
 	return true;
 }
+

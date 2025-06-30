@@ -55,6 +55,7 @@ extern "C"
         LineDiffType Type;
         FolderNode_S** Child;
         int ChildCount;
+        int Index;
     };
 
     struct LineOutput
@@ -68,6 +69,11 @@ extern "C"
     DIFFALGORITHM_DECLSPEC void CompareLinesByLCS(LineInfo_S** originOutput, LineInfo_S** targetOutput, const char** origin, const char** target,const int originSize, const int targetSize, int* count);
     DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode_S* targetOutput, const char* originInput, const char* targetInput);
     
+    // callback
+    typedef void(__stdcall* ProgressCallback)(int percent);
+    ProgressCallback g_progressCallback = nullptr;
+    DIFFALGORITHM_DECLSPEC void __stdcall SetProgressCallback(ProgressCallback cb);
+
     DIFFALGORITHM_DECLSPEC void FreeMemory(LineInfo_S* lines);
 
     bool CompareFile(string path1, string path2);
