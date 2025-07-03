@@ -1,6 +1,6 @@
 # DiffAlgorithm
 
-Algorithm History
+## Algorithm History
 
 ### Before
 - LIS + UpperBound + DP
