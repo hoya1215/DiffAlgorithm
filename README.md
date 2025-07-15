@@ -22,6 +22,9 @@
 
 - Extract unique common line method
 before : if line count is same, push common vector
+
+
+
 after : apply LCS to common vector, extract the longest common sequence
 
 -> Fix errors that occur in the correct order
