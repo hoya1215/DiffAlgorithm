@@ -1,6 +1,11 @@
 #include "pch.h"
 #include "DiffAlgorithm.h"
 
+bool cmp(pair<int, int> p1, pair<int, int> p2)
+{
+	return p1.second < p2.second;
+}
+
 DIFFALGORITHM_DECLSPEC void CompareLinesByLCS(LineInfo_S** originOutput, LineInfo_S** targetOutput, const char** origin, const char** target,const int originSize,const int targetSize, int* count)
 {
 	queue<string> LCS;
@@ -14,13 +19,20 @@ DIFFALGORITHM_DECLSPEC void CompareLinesByLCS(LineInfo_S** originOutput, LineInf
 
 	// UpperBound
 	unordered_map<string, deque<int>> targetMap;
+	unordered_map<string, deque<int>> originMap;
 	vector<int> targetV(targetSize, -1);
-	vector<int> dp(targetSize, 0);
+	vector<pair<int,int>> dp(targetSize, {-1, 0});
 	int test = 0;
+
 
 	for (int i = 0; i < originSize; ++i)
 	{
 		originQ.push(origin[i]);
+		if (strcmp(origin[i], "") == 0)
+		{
+			continue;
+		}
+		originMap[string(origin[i])].push_back(i);
 	}
 
 	for (int i = 0; i < targetSize; ++i)
@@ -34,71 +46,256 @@ DIFFALGORITHM_DECLSPEC void CompareLinesByLCS(LineInfo_S** originOutput, LineInf
 		targetMap[string(target[i])].push_back(i);
 	}
 
-
-	// UpperBound
-	for (int i = 0; i < originSize; ++i)
+#pragma region
+	// Map 체크
+	vector<pair<int, int>> common;
+	for (auto it = originMap.begin(); it != originMap.end(); ++it)
 	{
-		if (strcmp(origin[i], "") == 0)
-			continue;
-
-		auto it = targetMap.find(origin[i]);
-
-		if (it != targetMap.end() && !it->second.empty())
+		if (targetMap.find(it->first) != targetMap.end() && it->second.size() == targetMap[it->first].size())
 		{
-			targetV[it->second.front()] = i;
-			it->second.pop_front();
+			for (int i = 0; i < it->second.size(); ++i)
+			{
+				common.push_back({ it->second[i], targetMap[it->first][i] });
+			}
 		}
 	}
 
-	int maxCount = 0;
-	int maxIndex = targetV.size();
-	map<int, int> UB;
-	for (int i = targetV.size()- 1; i >= 0; --i)
+	sort(common.begin(), common.end(), cmp);
+
+	int MAX = max(targetSize, originSize);
+	int maxIndex = MAX;
+
+	// Common LCS
+	vector<vector<int>> commonDP;
+	set<int> commonUP;
+	commonDP.resize(MAX,vector<int>(3, -1));
+	int commonIndex = 0;
+	int commonCount = 0;
+
+	for (int i = common.size() - 1; i >= 0; --i)
 	{
-		int key = targetV[i];
-		int index = targetV.size();
-		//for (int j = i + 1; j < targetV.size(); ++j)
-		//{
-		//	if (key < targetV[j])
-		//	{
-		//		index = j;
-		//		break;
-		//	}
-		//}
-		
-		UB[key] = i;
-		auto it = UB.upper_bound(key);
-		if (it != UB.end())
-			index = it->second;
-		
-		//int index = upper_bound(targetV.begin() + i, targetV.end(), key) - targetV.begin();
-		if (index < targetV.size())
+		int index = common[i].first;
+		auto it = commonUP.upper_bound(index);
+
+		if (it != commonUP.end())
 		{
-			dp[i] = dp[index] + 1;
-			
+			commonDP[index][2] = commonDP[*it][2] + 1;
+			commonDP[index][0] = *it;
+			commonDP[index][1] = common[i].second;
 		}
 		else
-			dp[i] = 1;
-
-		if (maxCount <= dp[i])
 		{
-			maxCount = dp[i];
-			maxIndex = i;
+			commonDP[index][2] = 1;
+			commonDP[index][0] = -1;
+			commonDP[index][1] = common[i].second;
 		}
+
+		if (commonCount <= commonDP[index][2])
+		{
+			commonIndex = commonDP[index][0];
+
+			commonCount = commonDP[index][2];
+		}
+
+		commonUP.insert(index);
 	}
 
-	//*count = maxCount;
+	common.clear();
 
-	int prev = -1;
-	for (int i = maxIndex; i < targetV.size(); ++i)
+	while (commonIndex < MAX)
 	{
-		int next = targetV[i];
-		if (prev < next)
-		{
-			LCS.push(origin[next]);
-			prev = next;
-		}
+		common.push_back({ commonIndex, commonDP[commonIndex][1] });
+		commonIndex = commonDP[commonIndex][0];
+
+		if (commonIndex == -1)
+			break;
 	}
+
+
+	int prev1 = 0;
+	int prev2 = 0;
+	for (int i = 0; i < common.size(); ++i)
+	{
+		
+
+		int s1 = prev1;
+		int e1 = common[i].first;
+		int s2 = prev2;
+		int e2 = common[i].second;
+		unordered_map<string, deque<int>> m1;
+		unordered_map<string, deque<int>> m2;
+		map<int, int> order;
+
+		if(s1 != e1 && strcmp(origin[s1], target[s2]) == 0)
+			LCS.push(origin[s1]);
+
+		for (int j = s2 + 1; j < e2; ++j)
+		{
+			if (strcmp(target[j], "") == 0)
+			{
+				continue;
+			}
+			m2[string(target[j])].push_back(j);
+		}
+
+		for (int j = s1 + 1; j < e1; ++j)
+		{
+			if (strcmp(origin[j], "") == 0)
+				continue;
+
+			auto it = m2.find(origin[j]);
+			if (it != m2.end() && !it->second.empty())
+			{
+				order[it->second.front()] = j;
+				it->second.pop_front();
+			}
+		}
+
+		int maxCount = 0;
+
+		map<int, int> UB;
+		unordered_map<int, pair<int, int>> dp2;
+		for (auto it = order.rbegin(); it != order.rend(); ++it)
+		{
+			int key = it->second;
+			int index = MAX;
+
+			UB[key] = it->first;
+			auto upper = UB.upper_bound(key);
+			if (upper != UB.end())
+				index = upper->second;
+			
+			if (index < MAX)
+			{
+				dp2[it->first].second = dp2[index].second + 1;
+				dp2[it->first].first = index;
+			}
+			else
+			{
+				dp2[it->first].first = -1;
+				dp2[it->first].second = 1;
+			}
+
+			if (maxCount <= dp2[it->first].second)
+			{
+				maxCount = dp2[it->first].second;
+				maxIndex = it->first;
+			}
+		}
+
+		int index = maxIndex;
+		maxIndex = MAX;
+
+		while (index < maxIndex)
+		{
+			int next = order[index];
+			LCS.push(origin[next]);
+			index = dp2[index].first;
+
+			if (index == -1)
+				break;
+		}
+
+		if (i == common.size() - 1)
+		{
+			LCS.push(origin[e1]);
+		}
+
+		prev1 = common[i].first;
+		prev2 = common[i].second;
+	}
+#pragma endregion
+
+
+// not extract common
+#pragma region
+	 //UpperBound
+	//for (int i = 0; i < originSize; ++i)
+	//{
+	//	if (strcmp(origin[i], "") == 0)
+	//		continue;
+
+	//	auto it = targetMap.find(origin[i]);
+
+	//	if (it != targetMap.end() && !it->second.empty())
+	//	{
+	//		targetV[it->second.front()] = i;
+	//		//if (it->second.size() == 1)
+	//		//	add.push(it->second.front());
+
+
+	//		it->second.pop_front();
+	//	}
+	//}
+
+	//int maxCount = 0;
+	//int maxIndex = targetV.size();
+	//map<int, int> UB;
+	//for (int i = targetV.size()- 1; i >= 0; --i)
+	//{
+	//	int key = targetV[i];
+	//	int index = targetV.size();
+	//	
+	//	
+	//	auto it = UB.upper_bound(key);
+	//	if (it != UB.end())
+	//		index = it->second;
+	//	
+	//	//int index = upper_bound(targetV.begin() + i, targetV.end(), key) - targetV.begin();
+	//	if (index < targetV.size())
+	//	{
+	//		dp[i].second = dp[index].second + 1;
+	//		dp[i].first = it->second;
+	//	}
+	//	else
+	//		dp[i].second = 1;
+
+	//	if (maxCount <= dp[i].second)
+	//	{
+	//		maxCount = dp[i].second;
+	//		maxIndex = i;
+	//	}
+
+	//	UB[key] = i;
+	//}
+
+	////*count = maxCount;
+
+	//int prev = -1;
+	//int prevIndex = -1;
+
+	//int index = maxIndex;
+	//while (index < targetV.size())
+	//{
+	//	int next = targetV[index];
+	//	LCS.push(origin[next]);
+	//	index = dp[index].first;
+
+	//	if (index == -1)
+	//		break;
+	//}
+#pragma endregion
+	
+
+	//for (int i = maxIndex; i < targetV.size(); ++i)
+	//{
+	//	int next = targetV[i];
+	//	if (prevIndex == -1)
+	//	{
+	//		LCS.push(origin[next]);
+	//		prev = next;
+	//		prevIndex = i;
+	//		continue;
+	//	}
+	//	
+	//	if (prev < next && dp[i].second == dp[prevIndex].second-1)
+	//	{
+	//		LCS.push(origin[next]);
+	//		prev = next;
+	//		prevIndex = i;
+	//	}
+	//}
+	//LCS.push(target[targetSize-1]);
 
 
 
@@ -130,7 +327,7 @@ DIFFALGORITHM_DECLSPEC void CompareLinesByLCS(LineInfo_S** originOutput, LineInf
 		string targetText = targetQ.front();
 		string LCSText = LCS.front();
 
-		if (originText == targetText)
+		if (originText == targetText && originText == LCSText)
 		{
 			
 
@@ -209,11 +406,11 @@ DIFFALGORITHM_DECLSPEC void CompareLinesByLCS(LineInfo_S** originOutput, LineInf
 		}
 	}
 
-	while (!originQ.empty() && !targetQ.empty())
+	while (!(originQ.empty() && targetQ.empty()))
 	{
 
-		string originText = originQ.empty() ? "" : originQ.front();
-		string targetText = targetQ.empty() ? "" : targetQ.front();
+		string originText = originQ.empty() ? " " : originQ.front();
+		string targetText = targetQ.empty() ? " " : targetQ.front();
 
 		if (!originQ.empty() && !targetQ.empty())
 		{
@@ -268,222 +465,8 @@ DIFFALGORITHM_DECLSPEC void CompareLinesByLCS(LineInfo_S** originOutput, LineInf
 			if (!targetQ.empty())
 				targetQ.pop();
 		}
-
-		//if (originText != "" && targetText != "")
-		//{
-		//	
-		//	LineInfo_S originLine = { LineDiffType::Diff, LineDiffType::Diff };
-		//	originLine.Text = new char[originText.size() + 1];
-		//	strcpy_s(originLine.Text, originText.size() + 1, originText.c_str());
-
-		//	LineInfo_S targetLine = { LineDiffType::Diff, LineDiffType::Diff };
-		//	targetLine.Text = new char[targetText.size() + 1];
-		//	strcpy_s(targetLine.Text, targetText.size() + 1, targetText.c_str());
-
-		//	originLines.push_back(originLine);
-		//	targetLines.push_back(targetLine);
-
-		//	originQ.pop();
-		//	targetQ.pop();
-		//}
-		//else
-		//{
-		//	// "" 이면 Added, Deleted 추가
-
-		//	LineInfo_S originLine = { LineDiffType::Diff, LineDiffType::Diff };
-		//	originLine.Text = new char[originText.size() + 1];
-		//	strcpy_s(originLine.Text, originText.size() + 1, originText.c_str());
-
-		//	LineInfo_S targetLine = { LineDiffType::Diff, LineDiffType::Diff };
-		//	targetLine.Text = new char[targetText.size() + 1];
-		//	strcpy_s(targetLine.Text, targetText.size() + 1, targetText.c_str());
-
-		//	originLines.push_back(originLine);
-		//	targetLines.push_back(targetLine);
-
-		//	if (!originQ.empty())
-		//		originQ.pop();
-		//	if (!targetQ.empty())
-		//		targetQ.pop();
-		//}
 	}
 
-
-	//while (!LCS.empty())
-	//{
-
-
-	//	string originText = originQ.front();
-	//	string targetText = targetQ.front();
-	//	string LCSText = LCS.front();
-
-	//	if (originText == targetText)
-	//	{
-
-	//			LineInfo_S originLine = { LineDiffType::Same, LineDiffType::Same };
-	//			originLine.Text = new char[originText.size() + 1];
-	//			strcpy_s(originLine.Text, originText.size() + 1, originText.c_str());
-
-	//			LineInfo_S targetLine = { LineDiffType::Same, LineDiffType::Same };
-	//			targetLine.Text = new char[targetText.size() + 1];
-	//			strcpy_s(targetLine.Text, targetText.size() + 1, targetText.c_str());
-
-	//			originLines.push_back(originLine);
-	//			targetLines.push_back(targetLine);
-
-	//			originQ.pop();
-	//			targetQ.pop();
-	//			if (originText != "")
-	//				LCS.pop();
-
-	//	}
-	//	else
-	//	{
-	//		if (originText == LCSText)
-	//		{
-
-	//			LineInfo_S originLine = { LineDiffType::Deleted, LineDiffType::Deleted };
-	//			string s = "";
-	//			originLine.Text = new char[s.size() + 1];
-	//			strcpy_s(originLine.Text, s.size() + 1, s.c_str());
-
-	//			LineInfo_S targetLine = { LineDiffType::Added, LineDiffType::Added };
-	//			targetLine.Text = new char[targetText.size() + 1];
-	//			strcpy_s(targetLine.Text, targetText.size() + 1, targetText.c_str());
-
-	//			originLines.push_back(originLine);
-	//			targetLines.push_back(targetLine);
-
-	//				targetQ.pop();
-	//		}
-	//		else if (targetText == LCSText)
-	//		{
-
-	//			LineInfo_S originLine = { LineDiffType::Added, LineDiffType::Added };
-	//			originLine.Text = new char[originText.size() + 1];
-	//			strcpy_s(originLine.Text, originText.size() + 1, originText.c_str());
-
-	//			LineInfo_S targetLine = { LineDiffType::Deleted, LineDiffType::Deleted };
-	//			string s = "";
-	//			targetLine.Text = new char[s.size() + 1];
-	//			strcpy_s(targetLine.Text, s.size() + 1, s.c_str());
-
-	//			originLines.push_back(originLine);
-	//			targetLines.push_back(targetLine);
-
-	//				originQ.pop();
-	//		}
-	//		else
-	//		{
-	//			LineInfo_S originLine = { LineDiffType::Diff,LineDiffType::Diff };
-	//			originLine.Text = new char[originText.size() + 1];
-	//			strcpy_s(originLine.Text, originText.size() + 1, originText.c_str());
-
-	//			LineInfo_S targetLine = { LineDiffType::Diff, LineDiffType::Diff };
-	//			targetLine.Text = new char[targetText.size() + 1];
-	//			strcpy_s(targetLine.Text, targetText.size() + 1, targetText.c_str());
-
-
-	//			originLines.push_back(originLine);
-	//			targetLines.push_back(targetLine);
-
-	//				originQ.pop();
-	//				targetQ.pop();
-	//		}
-	//	}
-	//}
-
-
-	//while (!originQ.empty() || !targetQ.empty())
-	//{
-	//	*count = 1000;
-
-	//	string originText = originQ.empty() ? "" : originQ.front();
-	//	string targetText = targetQ.empty() ? "" : targetQ.front();
-
-	//	if (!originQ.empty() && !targetQ.empty())
-	//	{
-	//		LineInfo_S originLine = { LineDiffType::Diff, LineDiffType::Diff };
-	//		originLine.Text = new char[originText.size() + 1];
-	//		strcpy_s(originLine.Text, originText.size() + 1, originText.c_str());
-
-	//		LineInfo_S targetLine = { LineDiffType::Diff, LineDiffType::Diff };
-	//		targetLine.Text = new char[targetText.size() + 1];
-	//		strcpy_s(targetLine.Text, targetText.size() + 1, targetText.c_str());
-
-	//		if (originText == "" && targetText == "")
-	//		{
-	//			originLine.Type = LineDiffType::Same;
-	//			originLine.Data = LineDiffType::Same;
-	//			targetLine.Type = LineDiffType::Same;
-	//			targetLine.Data = LineDiffType::Same;
-	//		}
-
-	//		originLines.push_back(originLine);
-	//		targetLines.push_back(targetLine);
-
-	//		originQ.pop();
-	//		targetQ.pop();
-	//	}
-	//	else
-	//	{
-	//		// "" 이면 Added, Deleted 추가
-
-	//		LineInfo_S originLine = { LineDiffType::Diff, LineDiffType::Diff };
-	//		originLine.Text = new char[originText.size() + 1];
-	//		strcpy_s(originLine.Text, originText.size() + 1, originText.c_str());
-
-	//		LineInfo_S targetLine = { LineDiffType::Diff, LineDiffType::Diff };
-	//		targetLine.Text = new char[targetText.size() + 1];
-	//		strcpy_s(targetLine.Text, targetText.size() + 1, targetText.c_str());
-
-	//		originLines.push_back(originLine);
-	//		targetLines.push_back(targetLine);
-
-	//		if (!originQ.empty())
-	//			originQ.pop();
-	//		if (!targetQ.empty())
-	//			targetQ.pop();
-	//	}
-
-	//	//if (originText != "" && targetText != "")
-	//	//{
-
-	//	//	LineInfo_S originLine = { LineDiffType::Diff, LineDiffType::Diff };
-	//	//	originLine.Text = new char[originText.size() + 1];
-	//	//	strcpy_s(originLine.Text, originText.size() + 1, originText.c_str());
-
-	//	//	LineInfo_S targetLine = { LineDiffType::Diff, LineDiffType::Diff };
-	//	//	targetLine.Text = new char[targetText.size() + 1];
-	//	//	strcpy_s(targetLine.Text, targetText.size() + 1, targetText.c_str());
-
-	//	//	originLines.push_back(originLine);
-	//	//	targetLines.push_back(targetLine);
-
-	//	//	originQ.pop();
-	//	//	targetQ.pop();
-	//	//}
-	//	//else
-	//	//{
-	//	//	// "" 이면 Added, Deleted 추가
-
-	//	//	LineInfo_S originLine = { LineDiffType::Diff, LineDiffType::Diff };
-	//	//	originLine.Text = new char[originText.size() + 1];
-	//	//	strcpy_s(originLine.Text, originText.size() + 1, originText.c_str());
-
-	//	//	LineInfo_S targetLine = { LineDiffType::Diff, LineDiffType::Diff };
-	//	//	targetLine.Text = new char[targetText.size() + 1];
-	//	//	strcpy_s(targetLine.Text, targetText.size() + 1, targetText.c_str());
-
-	//	//	originLines.push_back(originLine);
-	//	//	targetLines.push_back(targetLine);
-
-	//	//	if(!originQ.empty())
-	//	//		originQ.pop();
-	//	//	if(!targetQ.empty())
-	//	//		targetQ.pop();
-	//	//}
-	//}
 
 	// output
 	*originOutput = new LineInfo_S[originLines.size()];
@@ -993,6 +976,33 @@ DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode
 	return bReturn;
 }
 
+DIFFALGORITHM_DECLSPEC void CompareImage(unsigned char* originPixel, unsigned char* targetPixel, int width, int height, int channels)
+{
+	int size = width * height;
+	vector<bool> visited;
+	visited.resize(size, false);
+
+	for (int i = 0; i < size; ++i)
+	{
+		int index = i * channels;
+		if (visited[i])
+			continue;
+
+		visited[i] = true;
+
+		for (int j = 0; j < channels; ++j)
+		{
+			if (originPixel[index + j] != targetPixel[index + j])
+			{
+				CheckAdjacentPixel(originPixel, targetPixel, index, visited, channels);
+				break;
+			}
+		}
+	}
+}
+
+
+
 
 
 DIFFALGORITHM_DECLSPEC void __stdcall SetProgressCallback(ProgressCallback cb)
@@ -1054,5 +1064,16 @@ bool CreateFolder(FolderNode_S* origin, FolderNode_S* target)
 	}
 
 	return true;
+}
+
+void CheckAdjacentPixel(unsigned char* originPixel, unsigned char* targetPixel, int index, vector<bool>& visited, int channels)
+{
+	for (int i = 0; i < min(channels, 3); ++i)
+	{
+
+
+		originPixel[index + i] = imageDiffPixel[i];
+		targetPixel[index + i] = imageDiffPixel[i];
+	}
 }
 

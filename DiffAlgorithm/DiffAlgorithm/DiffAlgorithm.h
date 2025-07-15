@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <map>
 #include <unordered_set>
+#include <set>
 
 #ifdef DIFFALGORITHM_EXPORTS
 #define DIFFALGORITHM_DECLSPEC __declspec(dllexport)
@@ -66,9 +67,12 @@ extern "C"
         int targetCount;
     };
 
+    int imageDiffPixel[3] = { 0, 0, 255 };
+
     DIFFALGORITHM_DECLSPEC void CompareLinesByLCS(LineInfo_S** originOutput, LineInfo_S** targetOutput, const char** origin, const char** target,const int originSize, const int targetSize, int* count);
     DIFFALGORITHM_DECLSPEC bool CompareFolder(FolderNode_S* originOutput, FolderNode_S* targetOutput, const char* originInput, const char* targetInput);
-    
+    DIFFALGORITHM_DECLSPEC void CompareImage(unsigned char* originPixel, unsigned char* targetPixel, int width, int height, int channels);
+
     // callback
     typedef void(__stdcall* ProgressCallback)(int percent);
     ProgressCallback g_progressCallback = nullptr;
@@ -78,6 +82,8 @@ extern "C"
 
     bool CompareFile(string path1, string path2);
     bool CreateFolder(FolderNode_S* origin, FolderNode_S* target);
+    void CheckAdjacentPixel(unsigned char* originPixel, unsigned char* targetPixel, int index, vector<bool>& visited, int channels);
+
     string GetFileName(string path)
     {
         return filesystem::path(path).filename().string();
